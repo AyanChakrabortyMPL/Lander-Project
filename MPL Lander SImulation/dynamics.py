@@ -3,7 +3,7 @@ import numpy as np
 
 
 def ThrustCurve(t, duration, thrust):
-    ramp_time = 0.2 * duration
+    ramp_time = 0.05 * duration
     steady_start = ramp_time
 
     if t < ramp_time:
@@ -12,6 +12,17 @@ def ThrustCurve(t, duration, thrust):
         return thrust  # steady
     else:
         return 0
+    
+def CalculateMomentofInertia(mass,radius,height):
+    #simple cylindrical assumption for now, will update later
+
+    jxx = ((mass*height**2)/12)+((mass*radius**2)/4)
+    jyy = ((mass*height**2)/12)+((mass*radius**2)/4)
+    jzz = (mass*radius**2)/4
+    jxz = 0
+    jzx = 0
+
+    return jxx, jyy, jzz, jxz, jzx
 
 def SixDOFDynamics(t_s, StateVector, vehicle):
 
@@ -57,7 +68,7 @@ def SixDOFDynamics(t_s, StateVector, vehicle):
     #Translational Dynamics
 
     #Thrust and Aerodynamic Forces in Body Frame
-    Fxbody_N = 0 
+    Fxbody_N = ThrustCurve(t_s, 4, 15) 
     Fybody_N = 0
     Fzbody_N = 0
 

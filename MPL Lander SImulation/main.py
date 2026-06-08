@@ -1,21 +1,26 @@
-import dynamics as dynamics
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+import dynamics 
+import animationfunc as plot
+
 import math
 import numpy as np
 
 #Vehicle Physical Definitions
 
-MomentInertia_xx = 500     # roll  — small for a slender rocket (kg·m²)
-MomentInertia_yy = 8000    # pitch — large, mass spread along length
-MomentInertia_zz = 8000    # yaw   — same as pitch by symmetry
+InertiaTensorCalcs = dynamics.CalculateMomentofInertia(mass=1, radius=0.1, height=1)
 
-ProductOfInertia_xz = 0
-ProductOfInertia_zx = 0
+VehicleMass_kg = 1 # mass of the rocket 
+
+InertiaTensorCalcs = dynamics.CalculateMomentofInertia(mass=VehicleMass_kg, radius=0.073, height=1)
+
+MomentInertia_xx = InertiaTensorCalcs[0]  
+MomentInertia_yy = InertiaTensorCalcs[1] 
+MomentInertia_zz = InertiaTensorCalcs[2] 
+ProductOfInertia_xz = InertiaTensorCalcs[3]
+ProductOfInertia_zx = InertiaTensorCalcs[4]
 
 
 vehicle = {
-    'mass_kg': 86,
+    'mass_kg': VehicleMass_kg,
     'Jxz_kgm2': ProductOfInertia_xz,
     'Jzx_kgm2': ProductOfInertia_zx,
     'Jxx_kgm2': MomentInertia_xx,
@@ -24,16 +29,16 @@ vehicle = {
 }
 
 #Initialization
-u_mps = 0
+u_mps = 0.001
 v_mps = 0
 w_mps = 0
 
-p_rps = 0
+p_rps = 0.001
 q_rps = 0  
 r_rps = 0
 
 phi_rad = 0*math.pi/180
-theta_rad = 0*math.pi/180
+theta_rad = 87*math.pi/180 
 psi_rad = 0*math.pi/180
 
 Xworld_m = 0
@@ -55,5 +60,55 @@ InitalStateVector = np.array([
     Zworld_m  # z-axis position in world frame
 ])
 
-def EulerForwardIntegration():
-    return 0
+def EulerForwardIntegration(simDuration_s, timestep_s, InitialStateVector, vehicle):
+
+    t_s = np.arange(0, simDuration_s + timestep_s, timestep_s)
+
+    nStates = len(InitialStateVector)
+
+    StateHistory = np.zeros((nStates, len(t_s)))
+
+    # Initial condition
+    StateHistory[:, 0] = InitialStateVector
+
+    # Time Increment Loop
+    for i in range(len(t_s)-1):
+
+        CurrentState = StateHistory[:, i]
+        
+        if CurrentState[11] > 2: #Check if we hit the ground
+            print(f"Rocket has landed at time {t_s[i]:.2f} seconds.")
+            StateHistory = StateHistory[:, :i+1]  # Trim the history to the landing time
+            t_s = t_s[:i+1]
+            break
+        
+        # Compute state derivatives
+        StateDot = dynamics.SixDOFDynamics(
+            t_s[i],
+            CurrentState,
+            vehicle
+        )
+
+        # Euler step
+        StateHistory[:, i+1] = (
+            CurrentState +
+            timestep_s * StateDot
+        )
+
+    return t_s, StateHistory
+
+
+
+def run():
+
+    simDuration_s = 20
+    timestep_s = 0.01
+
+    t_s, StateHistory = EulerForwardIntegration(simDuration_s,timestep_s,InitalStateVector,vehicle)
+
+    #Animate2D(t_s, StateHistory)
+    #PlotVerticalVelocity(t_s, StateHistory)
+    #plot.PlotFlightPath(t_s, StateHistory)
+    plot.PlotAllStates(t_s, StateHistory)
+
+run()
